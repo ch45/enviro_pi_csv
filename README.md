@@ -12,10 +12,10 @@ This script should live in the pi users home directory /home/pi/enviro_pi_csv.py
 To make the script run at start up we need to create a service for systemd. We can do that with the following:
 From the pi, run:
  
-pi@enviropi:~ $ sudo nano /lib/systemd/system/enviropi.service
+    sudo nano /lib/systemd/system/enviropi.service
+
 Then in the resulting file, paste in the following text: 
-(Note the indents are just to make it clear what needs to be copied and should probably not be included,
-might work with but not tested)
+
     [Unit]
     Description=Enviro Pi CSV data collection script.
     After=multi-user.target
@@ -28,12 +28,16 @@ might work with but not tested)
     
     [Install]
     WantedBy=multi-user.target
+
 Then press ctrl+x followed by y and enter. 
 Next we need to enable the newly created service with the following commands:
-pi@enviropi:~ $ sudo systemctl daemon-reload
-pi@enviropi:~ $ sudo systemctl enable enviropi.service
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable enviropi.service
+
 Now when the pi stats up or reboots, it should automatically run the enviro_pi_csv.py data collection script.
 We can manually start, stop and restart the service with the following commands:
-pi@enviropi:~ $ sudo systemctl start enviropi.service
-pi@enviropi:~ $ sudo systemctl stop enviropi.service
-pi@enviropi:~ $ sudo systemctl restart enviropi.service
+
+    sudo systemctl start enviropi.service
+    sudo systemctl stop enviropi.service
+    sudo systemctl restart enviropi.service
