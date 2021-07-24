@@ -1,14 +1,22 @@
 # Enviro Pi CSV
 
-Python script to read sensor data from the Enviro+ hat and save it in a csv along with GPS data
+Python script to read sensor data from the Enviro+ hat and save it in a csv along with GPS data.
+
 You will need to ensure that the python requirements are installed, see the enviro+ tutorials for that info.
+
 This script needs to know which port your GPS module is running on (currently hardcoded below).
+
 Script also expects a particulate sensor to be attached (will probably fail it not present)
+
 At startup the script should show what it is doing on the Enviro+ lcd display.
+
 You can also connect a button to the Enviro+ breakout pin #4 (pass through to GPIO4).
 Pressing the button for more than 3 seconds (but less than 10) will reset the csv collection, creating a new file
-in the process. Pressing the button for more than 10 seconds will safely shutdown the Raspberry Pi.
+in the process. 
+Pressing the button for more than 10 seconds will safely shutdown the Raspberry Pi.
+
 This script should live in the pi users home directory /home/pi/enviro_pi_csv.py
+
 To make the script run at start up we need to create a service for systemd. We can do that with the following:
 From the pi, run:
  
