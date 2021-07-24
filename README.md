@@ -10,7 +10,7 @@ Script also expects a particulate sensor to be attached (will probably fail it n
 
 At startup the script should show what it is doing on the Enviro+ lcd display.
 
-You can also connect a button to the Enviro+ breakout pin #4 (pass through to GPIO4).
+You can also connect a button to the Enviro+ btween breakout pin #4 (pass through to GPIO4) and GND.
 Pressing the button for more than 3 seconds (but less than 10) will reset the csv collection, creating a new file
 in the process. 
 Pressing the button for more than 10 seconds will safely shutdown the Raspberry Pi.
