@@ -1,2 +1,39 @@
-# enviro_pi_csv
-A python script to collect data from an Enviro+ hat (along with GPS position data) in a CSV
+# Enviro Pi CSV
+
+Python script to read sensor data from the Enviro+ hat and save it in a csv along with GPS data
+You will need to ensure that the python requirements are installed, see the enviro+ tutorials for that info.
+This script needs to know which port your GPS module is running on (currently hardcoded below).
+Script also expects a particulate sensor to be attached (will probably fail it not present)
+At startup the script should show what it is doing on the Enviro+ lcd display.
+You can also connect a button to the Enviro+ breakout pin #4 (pass through to GPIO4).
+Pressing the button for more than 3 seconds (but less than 10) will reset the csv collection, creating a new file
+in the process. Pressing the button for more than 10 seconds will safely shutdown the Raspberry Pi.
+This script should live in the pi users home directory /home/pi/enviro_pi_csv.py
+To make the script run at start up we need to create a service for systemd. We can do that with the following:
+From the pi, run:
+ 
+pi@enviropi:~ $ sudo nano /lib/systemd/system/enviropi.service
+Then in the resulting file, paste in the following text: 
+(Note the indents are just to make it clear what needs to be copied and should probably not be included,
+might work with but not tested)
+    [Unit]
+    Description=Enviro Pi CSV data collection script.
+    After=multi-user.target
+    
+    [Service]
+    WorkingDirectory=/home/pi
+    User=pi
+    ExecStart=/usr/bin/python3 /home/pi/enviro_pi_csv.py
+    Restart=always
+    
+    [Install]
+    WantedBy=multi-user.target
+Then press ctrl+x followed by y and enter. 
+Next we need to enable the newly created service with the following commands:
+pi@enviropi:~ $ sudo systemctl daemon-reload
+pi@enviropi:~ $ sudo systemctl enable enviropi.service
+Now when the pi stats up or reboots, it should automatically run the enviro_pi_csv.py data collection script.
+We can manually start, stop and restart the service with the following commands:
+pi@enviropi:~ $ sudo systemctl start enviropi.service
+pi@enviropi:~ $ sudo systemctl stop enviropi.service
+pi@enviropi:~ $ sudo systemctl restart enviropi.service
