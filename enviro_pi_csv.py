@@ -98,7 +98,7 @@ lcd_display.display(img)  # Display the image we have created on the LCD
 def create_new_file():
     """Create a csv file using the current timestamp as part of the filename so we dont overwrite existing data"""
     ts, _ = str(time.time()).split(".")  # Get the bit of the timestamp we want to use in the filename
-    csv_header = "GPS sentence prefix, Latitude, Heading, Longitude, Heading, Time, Data Valid, Checksum, PMS 1.0, PMS 2.5, PMS 10.0, Gas ADC, Gas Oxidizing, Gas Reducing, Gas NH3, Noise Low, Noise Mid, Noise High, Noise Total, Temperature, Humidity, Pressure, Altitude, Lux, Proximity"
+    csv_header = "GPS sentence prefix, Latitude, Heading, Longitude, Heading, Time, Data Valid, Checksum, PMS 1.0, PMS 2.5, PMS 10.0, Gas ADC, Gas Oxidizing, Gas Reducing, Gas NH3, Noise Low, Noise Mid, Noise High, Noise Total, Temperature, Humidity, Pressure, Altitude, Lux, Proximity\n"
     print(f"Creating csv file gps_{ts}.csv")  # Output the filename to the console
     print(f"{csv_header}")
     f = open(f"gps_{ts}.csv", 'w')  # Create the file
