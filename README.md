@@ -11,9 +11,11 @@ Script also expects a particulate sensor to be attached (will probably fail if n
 At startup the script should show what it is doing on the Enviro+ lcd display.
 
 You can also connect a button to the Enviro+ between breakout pin #4 (pass through to GPIO4) and GND.
-Pressing the button for more than 3 seconds (but less than 10) will reset the csv collection, creating a new file
+
+* Pressing the button for more than 3 seconds (but less than 10) will reset the csv collection, creating a new file
 in the process. 
-Pressing the button for more than 10 seconds will safely shutdown the Raspberry Pi.
+* Pressing the button for more than 10 seconds will restart the service.
+* Pressing the button for more than 20 seconds will safely shutdown the Raspberry Pi.
 
 This script should live in the pi users home directory /home/pi/enviro_pi_csv.py
 
@@ -37,7 +39,8 @@ Then in the resulting file, paste in the following text:
     [Install]
     WantedBy=multi-user.target
 
-Then press ctrl+x followed by y and enter. 
+Save the file (In nano press ctrl+x followed by y and enter). 
+
 Next we need to enable the newly created service with the following commands:
 
     sudo systemctl daemon-reload

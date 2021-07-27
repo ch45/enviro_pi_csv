@@ -1,0 +1,10 @@
+smbus2
+pms5003
+pimoroni-bme280
+ltr559
+ads1015
+ST7735
+pyserial
+spidev
+Pillow
+enviroplus
