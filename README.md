@@ -4,6 +4,11 @@ Python script to read sensor data from the Enviro+ hat and save it in a csv alon
 
 You will need to ensure that the python requirements are installed, see the enviro+ tutorials for that info.
 
+You will need to add the pi user to the dialout group to fix the permission denied error when using the serial port.
+From the pi, run:
+
+    sudo usermod -a -G dialout pi
+
 This script needs to know which port your GPS module is running on (currently hardcoded below).
 
 Script also expects a particulate sensor to be attached (will probably fail if not present)
