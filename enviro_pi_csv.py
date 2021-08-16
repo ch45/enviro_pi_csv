@@ -98,7 +98,7 @@ lcd_display.display(img)  # Display the image we have created on the LCD
 def create_new_file():
     """Create a csv file using the current timestamp as part of the filename so we dont overwrite existing data"""
     ts, _ = str(time.time()).split(".")  # Get the bit of the timestamp we want to use in the filename
-    csv_header = "GPS sentence prefix, Latitude, Heading, Longitude, Heading, Time, Data Valid, Checksum, PMS 1.0, PMS 2.5, PMS 10.0, Gas ADC, Gas Oxidizing, Gas Reducing, Gas NH3, Noise Low, Noise Mid, Noise High, Noise Total, Temperature, Humidity, Pressure, Altitude, Lux, Proximity\n"
+    csv_header = "Latitude, Heading, Longitude, Heading, Time, GPS Altitude, GPS Altitude Units, PMS 1.0, PMS 2.5, PMS 10.0, Gas ADC, Gas Oxidizing, Gas Reducing, Gas NH3, Noise Low, Noise Mid, Noise High, Noise Total, Temperature, Humidity, Pressure, Altitude, Lux, Proximity\n"
     print(f"Creating csv file gps_{ts}.csv")  # Output the filename to the console
     print(f"{csv_header}")
     f = open(f"gps_{ts}.csv", 'w')  # Create the file
@@ -120,6 +120,15 @@ def write_to_csv(data, file_name):
     lcd_display.display(img)  # Display the image we have created on the LCD
     f.close()  # Close the file
 
+def get_file_stats(file_name):
+    """Get number of lines and size of file"""
+    f = open(file_name)
+    lines = len(f.readlines())
+    size = os.path.getsize(file_name)
+    draw.rectangle((0, 48, 160, 80), (0, 0, 0))
+    draw.text((0, 48), f"File Size {round(size/1024)}k, with {lines} lines", font=my_font)
+    lcd_display.display(img)  # Display the image we have created on the LCD
+
 @dataclass
 class Weather_Data:
     """A data class to store the weather data for easier access - might be over kill but dataclasses are my new favourite thing in Python"""
@@ -140,8 +149,17 @@ time.sleep(1.0)
 button_timer = 0
 button_timer_start = False
 time_since_button_pressed = None
+new_data_gpgll = False
+new_data_gpgga = False
 
 while True:  # Do forever
+    lat = 0.0
+    long = 0.0
+    lat_north_south = 'N'
+    long_east_west = 'W'
+    alt = 0.0
+    alt_units = 'M'
+    gps_time = None
 
     # When the button on GPIO4 is pressed we can start a timer
     # When the timer reaches say 3 seconds, restart the csv collection
@@ -184,14 +202,31 @@ while True:  # Do forever
         button_timer = None  # Reset the button timer when not pressed
         button_timer_start = False
 
-    gps_data = None
+    gps_data = gps_data_a = gps_data_b = None
     pms_data = None
 
     if serialPort.in_waiting:  # If there is serial data
         gps_data = serialPort.readline()  # Get the data from the serial port
-        if b'$GPGLL' in gps_data:  # If we have the location data, write it to the file
-            logging.info(gps_data)  # Output data to console
-            # Only bother reading the other data when we have some GPS location data
+
+        if b'$GPGLL' in gps_data:  # If we have the NEMA sentence from the GPS module that tells us GPS position...
+            gps_data_tmp = gps_data.decode().split(',')[1:6]
+            lat = gps_data_tmp[0]
+            lat_north_south = gps_data_tmp[1]
+            long = gps_data_tmp[2]
+            long_east_west = gps_data_tmp[3]
+            gps_time = gps_data_tmp[4]
+            new_data_gpgll = True
+
+        if b'$GPGGA' in gps_data:  # If we have the NEMA sentence that tells us the GPS altitude...
+            gps_data_tmp = gps_data.decode().split(',')[9:11]
+            alt = gps_data_tmp[0]
+            alt_units = gps_data_tmp[1]
+            new_data_gpgga = True
+
+        if new_data_gpgll and new_data_gpgga:
+            # Only bother reading the other data when we have both GPS location and altitude data
+            new_data_gpgll = False
+            new_data_gpgga = False
             try:
                 pms_data = pms5003.read()
 
@@ -212,16 +247,14 @@ while True:  # Do forever
 
             # Get the light data
             light_csv = f"{ltr559.get_lux()},{ltr559.get_proximity()}"
-            # CSV Header:
-            # PREFIX, Latitude, Heading, Longitude, Heading, Time, Data Valid, PMS 1.0, PMS 2.5, PMS 10.0,
-            # Gas ADC, Gas Oxidizing, Gas Reducing, Gas NH3,
-            # Noise Low, Noise Mid, Noise High, Noise Total,
-            # Temperature, Humidity, Pressure, Altitude,
-            # Lux, Proximity
+
+            # Format the GPS data that we care about for the CSV
+            gps_csv = f"{lat},{lat_north_south},{long},{long_east_west},{gps_time},{alt},{alt_units}"
+
             # Only write data to the csv file if we have data for everything
-            if gps_data and pms_csv and gas_csv and noise_csv and weather_csv and light_csv:
-                data = f"{gps_data.decode().strip()},{pms_csv},{gas_csv},{noise_csv},{weather_csv},{light_csv}"  # Combine all the parts into a long csv line
+            if gps_csv and pms_csv and gas_csv and noise_csv and weather_csv and light_csv:
+                data = f"{gps_csv},{pms_csv},{gas_csv},{noise_csv},{weather_csv},{light_csv}"  # Combine all the parts into a long csv line
                 print(data)  # Print the data on the console so we can see what is happening
                 write_to_csv(data, file_name)  # Write csv data to file
 
-
+            get_file_stats(file_name)
