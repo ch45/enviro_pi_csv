@@ -1,9 +1,11 @@
 import os
+import sys
 import time
 import datetime
 import serial
 import logging
 from dataclasses import dataclass
+from inspect import currentframe, getframeinfo
 
 from enviroplus import gas
 from enviroplus import noise
@@ -33,28 +35,28 @@ This script should live in the pi users home directory /home/pi/enviro_pi_csv.py
 
 To make the script run at start up we need to create a service for systemd. We can do that with the following:
 From the pi, run:
- 
+
 pi@enviropi:~ $ sudo nano /lib/systemd/system/enviropi.service
 
-Then in the resulting file, paste in the following text: 
+Then in the resulting file, paste in the following text:
 (Note the indents are just to make it clear what needs to be copied and should probably not be included,
 might work with but not tested)
 
     [Unit]
     Description=Enviro Pi CSV data collection script.
     After=multi-user.target
-    
+
     [Service]
     WorkingDirectory=/home/pi
     User=pi
     ExecStart=/usr/bin/python3 /home/pi/enviro_pi_csv.py
     Restart=always
-    
+
     [Install]
     WantedBy=multi-user.target
 
 
-Then press ctrl+x followed by y and enter. 
+Then press ctrl+x followed by y and enter.
 Next we need to enable the newly created service with the following commands:
 
 pi@enviropi:~ $ sudo systemctl daemon-reload
@@ -67,6 +69,9 @@ pi@enviropi:~ $ sudo systemctl start enviropi.service
 pi@enviropi:~ $ sudo systemctl stop enviropi.service
 pi@enviropi:~ $ sudo systemctl restart enviropi.service
 """
+
+LAST_ROW = 79
+LAST_COL = 159
 
 # Create a button we can use to reset the collection or shutdown the pi etc
 button_4 = Button(4)
@@ -81,7 +86,7 @@ lcd_display = ST7735.ST7735(
     cs=1,
     dc=9,
     backlight=12,
-    rotation=270,
+    rotation=90,
     spi_speed_hz=10000000
 )
 lcd_display.begin()  # Init the display
@@ -89,7 +94,7 @@ lcd_display.begin()  # Init the display
 img = Image.new('RGB', (lcd_display.width, lcd_display.height), color=(0,0,0))
 draw = ImageDraw.Draw(img)
 # Font settings
-my_font = ImageFont.truetype(RobotoMedium, 10)
+my_font = ImageFont.truetype(RobotoMedium, 14)
 draw.text((0,0), "Script initialized...", font=my_font)
 lcd_display.display(img)  # Display the image we have created on the LCD
 # import time
@@ -97,15 +102,15 @@ lcd_display.display(img)  # Display the image we have created on the LCD
 
 def create_new_file():
     """Create a csv file using the current timestamp as part of the filename so we dont overwrite existing data"""
-    ts, _ = str(time.time()).split(".")  # Get the bit of the timestamp we want to use in the filename
+    ts = time.strftime("%Y-%m-%d-%H-%M")  # Get the bit of the timestamp we want to use in the filename
     csv_header = "Latitude, Heading, Longitude, Heading, Time, GPS Altitude, GPS Altitude Units, PMS 1.0, PMS 2.5, PMS 10.0, Gas ADC, Gas Oxidizing, Gas Reducing, Gas NH3, Noise Low, Noise Mid, Noise High, Noise Total, Temperature, Humidity, Pressure, Altitude, Lux, Proximity\n"
     print(f"Creating csv file gps_{ts}.csv")  # Output the filename to the console
     print(f"{csv_header}")
     f = open(f"gps_{ts}.csv", 'w')  # Create the file
     f.write(csv_header)
     f.close()  # Close the file
-    draw.rectangle((0, 12, 160, 80), (0, 0, 0))  # Clear the portion of the display we will be rewriting
-    draw.text((0, 12), f"Created {f.name}", font=my_font)
+    draw.rectangle((0, 16, LAST_COL, 31), (0, 0, 0))  # Clear the portion of the display we will be rewriting
+    draw.text((0, 16), f"Created {f.name}", font=my_font)
     lcd_display.display(img)  # Display the image we have created on the LCD
     return f"gps_{ts}.csv"  # Return the filename
 
@@ -114,20 +119,66 @@ def write_to_csv(data, file_name):
     f = open(file_name, "a")  # Open the file
     f.write(data.rstrip())  # Write the data
     f.write("\n")  # Write a newline
-    draw.rectangle((0, 24, 160, 80), (0, 0, 0))  # Clear the portion of the display we will be repeatedly writing to
-    draw.text((0, 24), f"Writing data to csv:", font=my_font)
-    draw.text((0, 36), f"{data}", font=my_font)
+    draw.rectangle((0, 48, LAST_COL, 63), (0, 0, 0))  # Clear the portion of the display we will be repeatedly writing to
+    draw.text((0, 48), f"{data}", font=my_font)
     lcd_display.display(img)  # Display the image we have created on the LCD
     f.close()  # Close the file
 
-def get_file_stats(file_name):
-    """Get number of lines and size of file"""
-    f = open(file_name)
-    lines = len(f.readlines())
+def display_time(time):
+    draw.rectangle((0, 0, 127, 15), (0, 0, 0))
+    draw.text((0, 0), f"{time}", font=my_font)
+
+def display_count(count):
+    draw.rectangle((0, 16, LAST_COL, 31), (0, 0, 0))
+    draw.text((0, 16), f"Reading {count}", font=my_font)
+
+def display_position(lat, hemisphere, long, side):
+    if (lat and long):
+        lat_fmt = ddmm2fmt(lat, hemisphere)
+        long_fmt = dddmm2fmt(long, side)
+        draw.rectangle((0, 32, LAST_COL, 47), (0, 0, 0))
+        draw.text((0, 32), f"{lat_fmt} {long_fmt}", font=my_font)
+
+def display_file_size(file_name):
+    """Get size of file"""
     size = os.path.getsize(file_name)
-    draw.rectangle((0, 48, 160, 80), (0, 0, 0))
-    draw.text((0, 48), f"File Size {round(size/1024)}k, with {lines} lines", font=my_font)
+    draw.rectangle((0, 64, LAST_COL, LAST_ROW), (0, 0, 0))
+    draw.text((0, 64), f"File Size {round(size/1024)}k", font=my_font)
     lcd_display.display(img)  # Display the image we have created on the LCD
+
+def display_line_number(lineno):
+    draw.rectangle((128, 0, LAST_COL, 15), (0, 0, 0))
+    draw.text((128, 0), f"{lineno}", font=my_font)
+    lcd_display.display(img)  # Display the image we have created on the LCD
+
+def hhmmss2fmt(hhmmss):
+    x = "{0:06.0f}".format(hhmmss)
+    hh = x[0:2]
+    mm = x[2:4]
+    ss = x[4:6]
+    return f"{hh}:{mm}:{ss}"
+
+def dddmm2fmt(dddmm, side):
+    x = abs(float(dddmm))
+    d, m = divmod(x, 100)
+    ddd = str(int(d))
+    mm = int(m)
+    s = 60 * (m - mm)
+    ss = str(s)[:3] if s < 10 else str(s)[:4]
+    if side == None:
+        side = 'E' if dddmm > 0 else 'W'
+    return f"{ddd}{chr(176)}{mm}\'{ss}\"{side}"
+
+def ddmm2fmt(ddmm, hemisphere):
+    x = abs(float(ddmm))
+    d, m = divmod(x, 100)
+    dd = str(int(d))
+    mm = int(m)
+    s = 60 * (m - mm)
+    ss = str(s)[:3] if s < 10 else str(s)[:4]
+    if hemisphere == None:
+        hemisphere = 'N' if ddmm > 0 else 'S'
+    return f"{dd}{chr(176)}{mm}\'{ss}\"{hemisphere}"
 
 @dataclass
 class Weather_Data:
@@ -151,6 +202,7 @@ button_timer_start = False
 time_since_button_pressed = None
 new_data_gpgll = False
 new_data_gpgga = False
+reading_count = 0
 
 while True:  # Do forever
     lat = 0.0
@@ -161,11 +213,16 @@ while True:  # Do forever
     alt_units = 'M'
     gps_time = None
 
+    display_line_number(getframeinfo(currentframe()).lineno)
+
     # When the button on GPIO4 is pressed we can start a timer
     # When the timer reaches say 3 seconds, restart the csv collection
     # When the timer reaches say 10 seconds, we can restart the enviropi.service
     # When the timer reaches say 20 seconds, we can shut the pi down safely
     if button_4.is_active:
+
+        display_line_number(getframeinfo(currentframe()).lineno)
+
         if button_timer_start:  # Button timer has already been started
             # Record how long its been since the button was pressed and held down
             # Note: We don't act on this timer until the button state is not pressed
@@ -175,24 +232,27 @@ while True:  # Do forever
             button_timer = datetime.datetime.now()
     else:
         # Button is no longer pressed... act on the duration of the recorded button press
+
+        display_line_number(getframeinfo(currentframe()).lineno)
+
         if button_timer_start:
             if time_since_button_pressed.total_seconds() > 3.0 and time_since_button_pressed.total_seconds() < 10.0:
                 print("Reset the csv collection")
-                draw.rectangle((0, 12, 160, 80), (0, 0, 0))  # Clear the portion of the display we will be rewriting
-                draw.text((0, 12), f"Resetting data collection", font=my_font)
+                draw.rectangle((0, 16, LAST_COL, LAST_ROW), (0, 0, 0))  # Clear the portion of the display we will be rewriting
+                draw.text((0, 16), f"Resetting data collection", font=my_font)
                 lcd_display.display(img)  # Display the image we have created on the LCD
                 time.sleep(3)
                 file_name = create_new_file()
             if time_since_button_pressed.total_seconds() > 10.0 and time_since_button_pressed.total_seconds() < 20.0:
                 print("Reset the service")
-                draw.rectangle((0, 12, 160, 80), (0, 0, 0))  # Clear the portion of the display we will be rewriting
-                draw.text((0, 12), f"Restarting enviropi service", font=my_font)
+                draw.rectangle((0, 16, LAST_COL, LAST_ROW), (0, 0, 0))
+                draw.text((0, 16), f"Restarting enviropi service", font=my_font)
                 lcd_display.display(img)  # Display the image we have created on the LCD
                 time.sleep(3)
                 os.system("sudo systemctl restart enviropi.service")
             elif time_since_button_pressed.total_seconds() > 20.0:
                 print("Shut down the pi")
-                draw.rectangle((0, 0, 160, 80), (0, 0, 0))  # Clear the portion of the display we will be rewriting
+                draw.rectangle((0, 0, LAST_COL, LAST_ROW), (0, 0, 0))
                 time.sleep(1)
                 draw.text((0, 0), f"Shutting down!", font=my_font)
                 lcd_display.display(img)  # Display the image we have created on the LCD
@@ -205,8 +265,15 @@ while True:  # Do forever
     gps_data = gps_data_a = gps_data_b = None
     pms_data = None
 
+    display_line_number(getframeinfo(currentframe()).lineno)
+
     if serialPort.in_waiting:  # If there is serial data
+
+        display_line_number(getframeinfo(currentframe()).lineno)
+
         gps_data = serialPort.readline()  # Get the data from the serial port
+
+        display_line_number(getframeinfo(currentframe()).lineno)
 
         if b'$GPGLL' in gps_data:  # If we have the NEMA sentence from the GPS module that tells us GPS position...
             gps_data_tmp = gps_data.decode().split(',')[1:6]
@@ -217,13 +284,20 @@ while True:  # Do forever
             gps_time = gps_data_tmp[4]
             new_data_gpgll = True
 
+        display_line_number(getframeinfo(currentframe()).lineno)
+
         if b'$GPGGA' in gps_data:  # If we have the NEMA sentence that tells us the GPS altitude...
             gps_data_tmp = gps_data.decode().split(',')[9:11]
             alt = gps_data_tmp[0]
             alt_units = gps_data_tmp[1]
             new_data_gpgga = True
 
+        display_line_number(getframeinfo(currentframe()).lineno)
+
         if new_data_gpgll and new_data_gpgga:
+
+            display_line_number(getframeinfo(currentframe()).lineno)
+
             # Only bother reading the other data when we have both GPS location and altitude data
             new_data_gpgll = False
             new_data_gpgga = False
@@ -233,28 +307,59 @@ while True:  # Do forever
             except ReadTimeoutError:
                 pms5003 = PMS5003()
 
+            display_line_number(getframeinfo(currentframe()).lineno)
+
             pms_csv = f"{pms_data.pm_ug_per_m3(1.0)},{pms_data.pm_ug_per_m3(2.5)},{pms_data.pm_ug_per_m3(10.0)}"
 
             gas_data = gas.read_all()  # Gas is not a class so we can just call the function
             gas_csv = f"{gas_data.adc},{gas_data.oxidising},{gas_data.reducing},{gas_data.nh3}"  # Format the data for csv
 
+            display_line_number(getframeinfo(currentframe()).lineno)
+
             noise_data = env_noise.get_noise_profile()  # Get the noise profile
             noise_csv = f"{noise_data[0]},{noise_data[1]},{noise_data[2]},{noise_data[3]}"  # Format the data for csv
+
+            display_line_number(getframeinfo(currentframe()).lineno)
 
             # Create an instance of the Weather_Data() class and fill it with the bme280 data
             weather_data = Weather_Data(bme.get_temperature(), bme.get_humidity(), bme.get_pressure(), bme.get_altitude())
             weather_csv = f"{weather_data.temperature},{weather_data.humidity},{weather_data.pressure},{weather_data.altitude}"
 
+            display_line_number(getframeinfo(currentframe()).lineno)
+
             # Get the light data
             light_csv = f"{ltr559.get_lux()},{ltr559.get_proximity()}"
+
+            display_line_number(getframeinfo(currentframe()).lineno)
 
             # Format the GPS data that we care about for the CSV
             gps_csv = f"{lat},{lat_north_south},{long},{long_east_west},{gps_time},{alt},{alt_units}"
 
             # Only write data to the csv file if we have data for everything
             if gps_csv and pms_csv and gas_csv and noise_csv and weather_csv and light_csv:
+
+                display_line_number(getframeinfo(currentframe()).lineno)
+
                 data = f"{gps_csv},{pms_csv},{gas_csv},{noise_csv},{weather_csv},{light_csv}"  # Combine all the parts into a long csv line
-                print(data)  # Print the data on the console so we can see what is happening
+                if sys.stdout.isatty():
+                    print(data)  # Print the data on the console so we can see what is happening
                 write_to_csv(data, file_name)  # Write csv data to file
 
-            get_file_stats(file_name)
+                display_line_number(getframeinfo(currentframe()).lineno)
+
+            display_line_number(getframeinfo(currentframe()).lineno)
+
+            display_file_size(file_name)
+
+            display_line_number(getframeinfo(currentframe()).lineno)
+
+            reading_count += 1
+            display_count(reading_count)
+
+            display_line_number(getframeinfo(currentframe()).lineno)
+
+            display_time(hhmmss2fmt(float(gps_time)) if gps_time != None else time.strftime("%d-%b-%Y %H:%M:%S"))
+
+            display_line_number(getframeinfo(currentframe()).lineno)
+
+            display_position(lat, lat_north_south, long, long_east_west)
