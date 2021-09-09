@@ -118,9 +118,6 @@ def write_to_csv(data, file_name):
     f = open(file_name, "a")  # Open the file
     f.write(data.rstrip())  # Write the data
     f.write("\n")  # Write a newline
-    draw.rectangle((0, 48, LAST_COL, 63), (0, 0, 0))  # Clear the portion of the display we will be repeatedly writing to
-    draw.text((0, 48), f"{data}", font=my_font)
-    lcd_display.display(img)  # Display the image we have created on the LCD
     f.close()  # Close the file
 
 def display_time(time):
@@ -143,6 +140,11 @@ def display_file_size(file_name):
     size = os.path.getsize(file_name)
     draw.rectangle((0, 64, LAST_COL, LAST_ROW), (0, 0, 0))
     draw.text((0, 64), f"File Size {round(size/1024)}k", font=my_font)
+    lcd_display.display(img)  # Display the image we have created on the LCD
+
+def display_enviro_data(data):
+    draw.rectangle((0, 48, LAST_COL, 63), (0, 0, 0))  # Clear the portion of the display we will be repeatedly writing to
+    draw.text((0, 48), f"{data}", font=my_font)
     lcd_display.display(img)  # Display the image we have created on the LCD
 
 def hhmmss2fmt(hhmmss):
@@ -312,3 +314,12 @@ while True:  # Do forever
             display_time(hhmmss2fmt(float(gps_time)) if gps_time != None else time.strftime("%d-%b-%Y %H:%M:%S"))
 
             display_position(lat, lat_north_south, long, long_east_west)
+
+            sequence = (reading_count // 10) % 3
+            # if   sequence == 0 : data_item = f"PM1.0 {pms_data.pm_ug_per_m3(1.0)}"
+            # elif sequence == 1 : data_item = f"PM2.5 {pms_data.pm_ug_per_m3(2.5)}"
+            # elif sequence == 2 : data_item = f"PM10 {pms_data.pm_ug_per_m3(10.0)}"
+            if   sequence == 0 : data_item = f"PM1.0:{pms_data.pm_ug_per_m3(1.0)} 2.5:{pms_data.pm_ug_per_m3(2.5)} 10:{pms_data.pm_ug_per_m3(10.0)}"
+            elif sequence == 1 : data_item = f"CO {gas_data.oxidising:6.0f}"
+            else               : data_item = f"NO2 {gas_data.reducing:6.0f}"
+            display_enviro_data(data_item)
