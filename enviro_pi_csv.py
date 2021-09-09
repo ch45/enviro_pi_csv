@@ -213,7 +213,7 @@ while True:  # Do forever
     alt_units = 'M'
     gps_time = None
 
-    display_line_number(getframeinfo(currentframe()).lineno)
+    display_line_number(216)
 
     # When the button on GPIO4 is pressed we can start a timer
     # When the timer reaches say 3 seconds, restart the csv collection
@@ -221,7 +221,7 @@ while True:  # Do forever
     # When the timer reaches say 20 seconds, we can shut the pi down safely
     if button_4.is_active:
 
-        display_line_number(getframeinfo(currentframe()).lineno)
+        display_line_number(224)
 
         if button_timer_start:  # Button timer has already been started
             # Record how long its been since the button was pressed and held down
@@ -233,7 +233,7 @@ while True:  # Do forever
     else:
         # Button is no longer pressed... act on the duration of the recorded button press
 
-        display_line_number(getframeinfo(currentframe()).lineno)
+        display_line_number(236)
 
         if button_timer_start:
             if time_since_button_pressed.total_seconds() > 3.0 and time_since_button_pressed.total_seconds() < 10.0:
@@ -265,15 +265,15 @@ while True:  # Do forever
     gps_data = gps_data_a = gps_data_b = None
     pms_data = None
 
-    display_line_number(getframeinfo(currentframe()).lineno)
+    display_line_number(268)
 
     if serialPort.in_waiting:  # If there is serial data
 
-        display_line_number(getframeinfo(currentframe()).lineno)
+        display_line_number(272)
 
         gps_data = serialPort.readline()  # Get the data from the serial port
 
-        display_line_number(getframeinfo(currentframe()).lineno)
+        display_line_number(276)
 
         if b'$GPGLL' in gps_data:  # If we have the NEMA sentence from the GPS module that tells us GPS position...
             gps_data_tmp = gps_data.decode().split(',')[1:6]
@@ -284,7 +284,7 @@ while True:  # Do forever
             gps_time = gps_data_tmp[4]
             new_data_gpgll = True
 
-        display_line_number(getframeinfo(currentframe()).lineno)
+        display_line_number(287)
 
         if b'$GPGGA' in gps_data:  # If we have the NEMA sentence that tells us the GPS altitude...
             gps_data_tmp = gps_data.decode().split(',')[9:11]
@@ -292,11 +292,11 @@ while True:  # Do forever
             alt_units = gps_data_tmp[1]
             new_data_gpgga = True
 
-        display_line_number(getframeinfo(currentframe()).lineno)
+        display_line_number(295)
 
         if new_data_gpgll and new_data_gpgga:
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            display_line_number(299)
 
             # Only bother reading the other data when we have both GPS location and altitude data
             new_data_gpgll = False
@@ -307,30 +307,30 @@ while True:  # Do forever
             except ReadTimeoutError:
                 pms5003 = PMS5003()
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            display_line_number(310)
 
             pms_csv = f"{pms_data.pm_ug_per_m3(1.0)},{pms_data.pm_ug_per_m3(2.5)},{pms_data.pm_ug_per_m3(10.0)}"
 
             gas_data = gas.read_all()  # Gas is not a class so we can just call the function
             gas_csv = f"{gas_data.adc},{gas_data.oxidising},{gas_data.reducing},{gas_data.nh3}"  # Format the data for csv
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            display_line_number(317)
 
             noise_data = env_noise.get_noise_profile()  # Get the noise profile
             noise_csv = f"{noise_data[0]},{noise_data[1]},{noise_data[2]},{noise_data[3]}"  # Format the data for csv
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            display_line_number(322)
 
             # Create an instance of the Weather_Data() class and fill it with the bme280 data
             weather_data = Weather_Data(bme.get_temperature(), bme.get_humidity(), bme.get_pressure(), bme.get_altitude())
             weather_csv = f"{weather_data.temperature},{weather_data.humidity},{weather_data.pressure},{weather_data.altitude}"
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            display_line_number(328)
 
             # Get the light data
             light_csv = f"{ltr559.get_lux()},{ltr559.get_proximity()}"
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            # display_line_number(333)
 
             # Format the GPS data that we care about for the CSV
             gps_csv = f"{lat},{lat_north_south},{long},{long_east_west},{gps_time},{alt},{alt_units}"
@@ -338,28 +338,28 @@ while True:  # Do forever
             # Only write data to the csv file if we have data for everything
             if gps_csv and pms_csv and gas_csv and noise_csv and weather_csv and light_csv:
 
-                display_line_number(getframeinfo(currentframe()).lineno)
+                display_line_number(341)
 
                 data = f"{gps_csv},{pms_csv},{gas_csv},{noise_csv},{weather_csv},{light_csv}"  # Combine all the parts into a long csv line
                 if sys.stdout.isatty():
                     print(data)  # Print the data on the console so we can see what is happening
                 write_to_csv(data, file_name)  # Write csv data to file
 
-                display_line_number(getframeinfo(currentframe()).lineno)
+                display_line_number(348)
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            display_line_number(350)
 
             display_file_size(file_name)
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            # display_line_number(354)
 
             reading_count += 1
             display_count(reading_count)
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            # display_line_number(359)
 
             display_time(hhmmss2fmt(float(gps_time)) if gps_time != None else time.strftime("%d-%b-%Y %H:%M:%S"))
 
-            display_line_number(getframeinfo(currentframe()).lineno)
+            # display_line_number(363)
 
             display_position(lat, lat_north_south, long, long_east_west)
