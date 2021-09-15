@@ -1,3 +1,5 @@
+# Original credit: https://github.com/MarkJB/enviro_pi_csv
+
 import os
 import sys
 import time
@@ -77,7 +79,7 @@ button_4 = Button(4)
 
 # Create a serial port
 physicalPort = '/dev/ttyACM0'  # Which serial port to use
-serialPort = serial.Serial(physicalPort)  # open serial port and assign that object to a variable
+serialPort = serial.Serial(physicalPort, 115200, timeout=1)  # open serial port and assign that object to a variable
 
 # Create an instance of the LCD class
 lcd_display = ST7735.ST7735(
